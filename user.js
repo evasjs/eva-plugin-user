@@ -35,6 +35,7 @@ module.exports = function createUser(options = {}) {
         avatar: { type: String, default: 'https://ooo.0o0.ooo/2017/06/06/593582f8bd5b9.png' },
         avatarBig: { type: String, default: 'https://ooo.0o0.ooo/2017/06/06/593582f8b88eb.png' },
         /* eslint-enable */
+        role: { type: Number, default: 0 }, // 0 common user, 10000 admin user
       },
       options: {
         timestamps: true,
@@ -170,7 +171,7 @@ module.exports = function createUser(options = {}) {
 
     routes: {
       '/user': {
-        get: ['requireAuthorized', 'format/offset&limit', 'list'],
+        get: ['requireAuthorized', 'requireAdmin', 'format/offset&limit', 'list'],
         // post: ['filter/username&password', 'filter/twicepassword', 'create'],
       },
       '/user/:id': {
@@ -183,6 +184,9 @@ module.exports = function createUser(options = {}) {
       },
       '/auth': {
         post: ['filter/username&password', 'authorize'],
+      },
+      '/auth/refresh': {
+        get: ['requireAuthorized', 'refresh/token'],
       },
       '/resetPassword': {
         get: ['filter/token', 'filter/twicepassword', 'updatePassword'],
@@ -286,6 +290,22 @@ module.exports = function createUser(options = {}) {
           return next();
         });
       },
+      // 'filter/auth/expired'({ User }, { req, next }) {
+      //  
+      // },
+      'requireAdmin'({ User }, { req, next }) {
+        const user = req.user;
+        if (user.role !== 10000) {
+          const err = new Error();
+          err.json = {
+            errcode: 400114,
+            errmsg: '系统错误; Javaer; hhhhhhh',
+          };
+          return next(err);
+        }
+
+        return next();
+      },
     },
 
     handlers: {
@@ -372,6 +392,13 @@ module.exports = function createUser(options = {}) {
               return res.status(200).json(token);
             });
           });
+        });
+      },
+      'refresh/token'({ User }, { req, res }) {
+        const user = req.user;
+        return user.sign((err, token) => {
+          if (err) return next(err);
+          return res.status(200).json(token);
         });
       },
     },
